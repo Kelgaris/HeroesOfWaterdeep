@@ -35,12 +35,26 @@ function loadRootEnv() {
 
 loadRootEnv();
 
+const expoConfig = appJson.expo || {};
+const androidPackage =
+  process.env.EXPO_ANDROID_PACKAGE || "com.kelgaris.heroesofwaterdeep";
+const iosBundleIdentifier =
+  process.env.EXPO_IOS_BUNDLE_IDENTIFIER || "com.kelgaris.heroesofwaterdeep";
+
 module.exports = {
   ...appJson,
   expo: {
-    ...appJson.expo,
+    ...expoConfig,
+    android: {
+      ...(expoConfig.android || {}),
+      package: androidPackage,
+    },
+    ios: {
+      ...(expoConfig.ios || {}),
+      bundleIdentifier: iosBundleIdentifier,
+    },
     extra: {
-      ...(appJson.expo.extra || {}),
+      ...(expoConfig.extra || {}),
       expoPublicApiUrl: process.env.EXPO_PUBLIC_API_URL || "",
     },
   },

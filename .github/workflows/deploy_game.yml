@@ -98,6 +98,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch'
     env:
+      CI: 1
       EXPO_NO_TELEMETRY: 1
     defaults:
       run:
@@ -127,7 +128,7 @@ jobs:
         run: npm run lint
 
       - name: Generate native Android project
-        run: npx expo prebuild --platform android --non-interactive
+        run: npx expo prebuild --platform android
 
       - name: Build release APK
         run: |
@@ -149,6 +150,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.mobile == 'true' || github.event_name == 'workflow_dispatch'
     env:
+      CI: 1
       EXPO_NO_TELEMETRY: 1
     defaults:
       run:
@@ -172,7 +174,7 @@ jobs:
         run: npm run lint
 
       - name: Generate native iOS project
-        run: npx expo prebuild --platform ios --non-interactive
+        run: npx expo prebuild --platform ios
 
       - name: Install CocoaPods
         run: |
