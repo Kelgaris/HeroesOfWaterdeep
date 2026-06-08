@@ -3,7 +3,7 @@ const path = require("path");
 const appJson = require("./app.json");
 
 function loadRootEnv() {
-  const envPath = path.resolve(__dirname, "..", ".env");
+  const envPath = path.resolve(process.cwd(), "..", ".env");
 
   if (!fs.existsSync(envPath)) {
     return;
