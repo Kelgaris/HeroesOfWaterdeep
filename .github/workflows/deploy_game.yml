@@ -121,6 +121,19 @@ jobs:
           distribution: zulu
           java-version: "17"
 
+      - name: Create root env for mobile build
+        shell: bash
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
+          EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
+        run: |
+          {
+            echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
+            echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
+            echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
+          } > ../.env
+
       - name: Install dependencies
         run: npm ci
 
@@ -166,6 +179,19 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+
+      - name: Create root env for mobile build
+        shell: bash
+        env:
+          EXPO_PUBLIC_API_URL: ${{ vars.EXPO_PUBLIC_API_URL }}
+          EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
+          EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
+        run: |
+          {
+            echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
+            echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
+            echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
+          } > ../.env
 
       - name: Install dependencies
         run: npm ci

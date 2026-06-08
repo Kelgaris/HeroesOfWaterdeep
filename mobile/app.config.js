@@ -36,6 +36,7 @@ function loadRootEnv() {
 loadRootEnv();
 
 const expoConfig = appJson.expo || {};
+const appIconPath = "../backend/assets/HW_logo.png";
 const androidPackage =
   process.env.EXPO_ANDROID_PACKAGE || "com.kelgaris.heroesofwaterdeep";
 const iosBundleIdentifier =
@@ -45,13 +46,22 @@ module.exports = {
   ...appJson,
   expo: {
     ...expoConfig,
+    icon: appIconPath,
     android: {
       ...(expoConfig.android || {}),
       package: androidPackage,
+      adaptiveIcon: {
+        foregroundImage: appIconPath,
+        backgroundColor: "#8b6f34",
+      },
     },
     ios: {
       ...(expoConfig.ios || {}),
       bundleIdentifier: iosBundleIdentifier,
+    },
+    web: {
+      ...(expoConfig.web || {}),
+      favicon: appIconPath,
     },
     extra: {
       ...(expoConfig.extra || {}),

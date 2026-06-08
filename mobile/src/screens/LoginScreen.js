@@ -50,7 +50,11 @@ export default function LoginScreen({ navigation }) {
         routes: [{ name: "Home" }],
       });
     } catch (err) {
-      const message = err.response?.data?.message || "Error al iniciar sesión";
+      const message =
+        err.response?.data?.message ||
+        (err.request
+          ? "No se pudo conectar con el servidor. Comprueba la conexion y que la API este disponible."
+          : "Error al iniciar sesión");
       setDialogConfig({
         mode: "info",
         tone: "error",

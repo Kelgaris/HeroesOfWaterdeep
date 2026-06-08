@@ -26,12 +26,13 @@ const getServerURL = () => {
       return "http://localhost:5000";
     }
   }
-  return "http://localhost:5000";
+  return "";
 };
 
 // URL base para la API
 const getBaseURL = () => {
-  return `${getServerURL()}/api`;
+  const serverUrl = getServerURL();
+  return serverUrl ? `${serverUrl}/api` : "";
 };
 
 // Exportar la URL del servidor para construir URLs de imágenes
@@ -43,11 +44,11 @@ export const getAssetURL = (path) => {
   // Si ya es una URL completa, devolverla
   if (path.startsWith("http")) return path;
   // Si es una ruta relativa, construir la URL completa
-  return `${SERVER_URL}${path}`;
+  return SERVER_URL ? `${SERVER_URL}${path}` : null;
 };
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: getBaseURL() || undefined,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
