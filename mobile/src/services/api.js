@@ -35,6 +35,10 @@ const getBaseURL = () => {
   return serverUrl ? `${serverUrl}/api` : "";
 };
 
+export const API_BASE_URL = getBaseURL();
+
+export const hasConfiguredApiUrl = () => Boolean(API_BASE_URL);
+
 // Exportar la URL del servidor para construir URLs de imágenes
 export const SERVER_URL = getServerURL();
 
@@ -48,7 +52,7 @@ export const getAssetURL = (path) => {
 };
 
 const api = axios.create({
-  baseURL: getBaseURL() || undefined,
+  baseURL: API_BASE_URL || undefined,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
@@ -57,7 +61,7 @@ const api = axios.create({
 
 // Log para debug
 if (__DEV__) {
-  console.log("API Base URL:", getBaseURL());
+  console.log("API Base URL:", API_BASE_URL);
 }
 
 export const saveCurrentUser = async (user) => {

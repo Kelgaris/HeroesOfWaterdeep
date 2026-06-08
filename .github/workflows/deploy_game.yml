@@ -128,6 +128,9 @@ jobs:
           EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
           EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
         run: |
+          test -n "$EXPO_PUBLIC_API_URL" || { echo "Missing GitHub Actions variable: EXPO_PUBLIC_API_URL"; exit 1; }
+          test -n "$EXPO_ANDROID_PACKAGE" || { echo "Missing GitHub Actions variable: EXPO_ANDROID_PACKAGE"; exit 1; }
+          test -n "$EXPO_IOS_BUNDLE_IDENTIFIER" || { echo "Missing GitHub Actions variable: EXPO_IOS_BUNDLE_IDENTIFIER"; exit 1; }
           {
             echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
             echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
@@ -187,6 +190,9 @@ jobs:
           EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
           EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
         run: |
+          test -n "$EXPO_PUBLIC_API_URL" || { echo "Missing GitHub Actions variable: EXPO_PUBLIC_API_URL"; exit 1; }
+          test -n "$EXPO_ANDROID_PACKAGE" || { echo "Missing GitHub Actions variable: EXPO_ANDROID_PACKAGE"; exit 1; }
+          test -n "$EXPO_IOS_BUNDLE_IDENTIFIER" || { echo "Missing GitHub Actions variable: EXPO_IOS_BUNDLE_IDENTIFIER"; exit 1; }
           {
             echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
             echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"

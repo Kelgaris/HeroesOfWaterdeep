@@ -12,7 +12,11 @@ import {
 
 import FantasyButton from "../components/FantasyButton";
 import ThemedDialog from "../components/ThemedDialog";
-import api, { fetchCurrentUser, saveCurrentUser } from "../services/api";
+import api, {
+  fetchCurrentUser,
+  hasConfiguredApiUrl,
+  saveCurrentUser,
+} from "../services/api";
 
 const { width } = Dimensions.get("window");
 
@@ -29,6 +33,17 @@ export default function LoginScreen({ navigation }) {
         tone: "warning",
         title: "Campos incompletos",
         message: "Por favor completa todos los campos",
+      });
+      return;
+    }
+
+    if (!hasConfiguredApiUrl()) {
+      setDialogConfig({
+        mode: "info",
+        tone: "error",
+        title: "Configuración incompleta",
+        message:
+          "Esta APK no tiene configurada la URL de la API. Regenera la build con EXPO_PUBLIC_API_URL en GitHub Actions.",
       });
       return;
     }
