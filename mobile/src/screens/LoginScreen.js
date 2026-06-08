@@ -13,9 +13,9 @@ import {
 import FantasyButton from "../components/FantasyButton";
 import ThemedDialog from "../components/ThemedDialog";
 import api, {
-  fetchCurrentUser,
-  hasConfiguredApiUrl,
-  saveCurrentUser,
+    fetchCurrentUser,
+    hasConfiguredApiUrl,
+    saveCurrentUser,
 } from "../services/api";
 
 const { width } = Dimensions.get("window");
