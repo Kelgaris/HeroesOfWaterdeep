@@ -1,0 +1,17 @@
+# Archivos que va a ignorar Git
+# Ignorar archivos de configuración de entorno
+.env
+.env.local
+# Ignorar archivos de dependencias
+node_modules/
+# Ignorar archivos de construcción
+dist/
+build/
+# Ignorar archivos de logs
+logs/
+*.log
+# Ignorar archivos de sistema
+.DS_Store
+# Ignorar archivos de configuración de editor
+.vscode/
+.idea/

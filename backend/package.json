@@ -1,0 +1,32 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest --runInBand",
+    "seed:battle-catalog": "node scripts/syncBattleCatalog.js",
+    "migrate:remove-clive": "node scripts/migrateRemoveClive.js"
+  },
+  "keywords": [],
+  "author": "David Priego Puga",
+  "license": "ISC",
+  "description": "Videojuego de Heroes basado en el universo de Dungeons & Dragons, con un sistema de combate por turnos y una historia épica.",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express-rate-limit": "^7.4.1",
+    "express-validator": "^7.2.0",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.2.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.1.1"
+  }
+}
