@@ -128,14 +128,18 @@ jobs:
           EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
           EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
         run: |
-          test -n "$EXPO_PUBLIC_API_URL" || { echo "Missing GitHub Actions variable: EXPO_PUBLIC_API_URL"; exit 1; }
-          test -n "$EXPO_ANDROID_PACKAGE" || { echo "Missing GitHub Actions variable: EXPO_ANDROID_PACKAGE"; exit 1; }
-          test -n "$EXPO_IOS_BUNDLE_IDENTIFIER" || { echo "Missing GitHub Actions variable: EXPO_IOS_BUNDLE_IDENTIFIER"; exit 1; }
-          {
-            echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
-            echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
-            echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
-          } > ../.env
+          if [ -n "$EXPO_PUBLIC_API_URL" ] && [ -n "$EXPO_ANDROID_PACKAGE" ] && [ -n "$EXPO_IOS_BUNDLE_IDENTIFIER" ]; then
+            {
+              echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
+              echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
+              echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
+            } > ../.env
+          elif [ -f ../.env ]; then
+            echo "Using existing repository root .env"
+          else
+            echo "Missing mobile build configuration. Define GitHub Actions variables or provide a repository root .env file."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -190,14 +194,18 @@ jobs:
           EXPO_ANDROID_PACKAGE: ${{ vars.EXPO_ANDROID_PACKAGE }}
           EXPO_IOS_BUNDLE_IDENTIFIER: ${{ vars.EXPO_IOS_BUNDLE_IDENTIFIER }}
         run: |
-          test -n "$EXPO_PUBLIC_API_URL" || { echo "Missing GitHub Actions variable: EXPO_PUBLIC_API_URL"; exit 1; }
-          test -n "$EXPO_ANDROID_PACKAGE" || { echo "Missing GitHub Actions variable: EXPO_ANDROID_PACKAGE"; exit 1; }
-          test -n "$EXPO_IOS_BUNDLE_IDENTIFIER" || { echo "Missing GitHub Actions variable: EXPO_IOS_BUNDLE_IDENTIFIER"; exit 1; }
-          {
-            echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
-            echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
-            echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
-          } > ../.env
+          if [ -n "$EXPO_PUBLIC_API_URL" ] && [ -n "$EXPO_ANDROID_PACKAGE" ] && [ -n "$EXPO_IOS_BUNDLE_IDENTIFIER" ]; then
+            {
+              echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}"
+              echo "EXPO_ANDROID_PACKAGE=${EXPO_ANDROID_PACKAGE}"
+              echo "EXPO_IOS_BUNDLE_IDENTIFIER=${EXPO_IOS_BUNDLE_IDENTIFIER}"
+            } > ../.env
+          elif [ -f ../.env ]; then
+            echo "Using existing repository root .env"
+          else
+            echo "Missing mobile build configuration. Define GitHub Actions variables or provide a repository root .env file."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci
