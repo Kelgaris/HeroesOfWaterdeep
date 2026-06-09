@@ -1,23 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Dimensions,
-    Image,
-    ImageBackground,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  ImageBackground,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withSequence,
-    withSpring,
-    withTiming,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // ¡NUEVO! Para esquivar la barra blanca/área segura del dispositivo
 import ThemedDialog from "../components/ThemedDialog";
-import api, { fetchCurrentUser, getAssetURL, SERVER_URL } from "../services/api";
+import api, {
+  fetchCurrentUser,
+  getAssetURL,
+  SERVER_URL,
+} from "../services/api";
 
 const { width } = Dimensions.get("window");
 
@@ -39,7 +44,6 @@ const FieldSprite = ({
 
   useEffect(() => {
     if (attackTrigger > 0) {
-      // Movimiento hacia el enemigo (arriba/abajo en vertical)
       const moveDistance = isHero ? -40 : 40;
       translateY.value = withSequence(
         withTiming(moveDistance, { duration: 100 }),
@@ -75,7 +79,6 @@ const FieldSprite = ({
   return (
     <View style={styles.spriteContainer}>
       <Animated.View style={[styles.spriteWrapper, animatedStyle]}>
-        {/* Sombra a los pies */}
         <View style={styles.shadow} />
         {resolvedImageUri ? (
           <Image
@@ -125,13 +128,15 @@ const ROLE_LABELS = {
 };
 
 const UnitControlCard = ({ name, role, hp, maxHp, mp, maxMp, isDead }) => {
-  const hpWidth = (hp / maxHp) * 100;
-  const mpWidth = (mp / maxMp) * 100;
+  const hpWidth = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+  const mpWidth = maxMp > 0 ? (mp / maxMp) * 100 : 0;
 
   return (
     <View style={[styles.unitCard, isDead && { opacity: 0.5 }]}>
       <View style={styles.unitCardHeader}>
-        <Text style={styles.unitCardName}>{name.toUpperCase()}</Text>
+        <Text style={styles.unitCardName} numberOfLines={1}>
+          {name.toUpperCase()}
+        </Text>
         <Text style={styles.limitText}>{ROLE_LABELS[role] || "LIMIT"}</Text>
       </View>
 
@@ -143,7 +148,12 @@ const UnitControlCard = ({ name, role, hp, maxHp, mp, maxMp, isDead }) => {
           </Text>
         </View>
         <View style={styles.barBackground}>
-          <View style={[styles.hpBar, { width: `${hpWidth}%` }]} />
+          <View
+            style={[
+              styles.hpBar,
+              { width: `${Math.max(0, Math.min(100, hpWidth))}%` },
+            ]}
+          />
         </View>
 
         <View style={styles.statLine}>
@@ -151,7 +161,12 @@ const UnitControlCard = ({ name, role, hp, maxHp, mp, maxMp, isDead }) => {
           <Text style={styles.statValue}>{mp}</Text>
         </View>
         <View style={styles.barBackground}>
-          <View style={[styles.mpBar, { width: `${mpWidth}%` }]} />
+          <View
+            style={[
+              styles.mpBar,
+              { width: `${Math.max(0, Math.min(100, mpWidth))}%` },
+            ]}
+          />
         </View>
       </View>
     </View>
@@ -160,6 +175,8 @@ const UnitControlCard = ({ name, role, hp, maxHp, mp, maxMp, isDead }) => {
 
 export default function BattleScreen({ route, navigation }) {
   const { stageId, stage, selectedHeroIds } = route.params;
+  const insets = useSafeAreaInsets(); // Guardamos los espaciados del notch y barras de navegación del dispositivo
+
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState(null);
   const [logsToDisplay, setLogsToDisplay] = useState([]);
@@ -167,6 +184,9 @@ export default function BattleScreen({ route, navigation }) {
   const [isAuto, setIsAuto] = useState(false);
   const [isRepeat, setIsRepeat] = useState(false);
   const [nextStage, setNextStage] = useState(null);
+
+  // Cuenta atrás visible para el bucle de combates automatizados (Evita el softlock infinito)
+  const [repeatCountdown, setRepeatCountdown] = useState(null);
 
   const [heroes, setHeroes] = useState([]);
   const [enemies, setEnemies] = useState([]);
@@ -179,13 +199,26 @@ export default function BattleScreen({ route, navigation }) {
   const startBattleRef = useRef(null);
   const isAutoRef = useRef(isAuto);
   const isRepeatRef = useRef(isRepeat);
+  const countdownIntervalRef = useRef(null);
 
   useEffect(() => {
     isAutoRef.current = isAuto;
   }, [isAuto]);
   useEffect(() => {
     isRepeatRef.current = isRepeat;
+    // Si el usuario desactiva REPEAT manualmente a mitad de la cuenta atrás, limpiamos el bucle
+    if (!isRepeat) {
+      clearInterval(countdownIntervalRef.current);
+      setRepeatCountdown(null);
+    }
   }, [isRepeat]);
+
+  // Limpieza estricta de intervalos al desmontar el componente
+  useEffect(() => {
+    return () => {
+      clearInterval(countdownIntervalRef.current);
+    };
+  }, []);
 
   const animateBattleLogs = useCallback((logs, victory) => {
     let currentIndex = 0;
@@ -214,7 +247,7 @@ export default function BattleScreen({ route, navigation }) {
           ...prev,
           [log.attacker]: {
             ...prev[log.attacker],
-            attack: prev[log.attacker].attack + 1,
+            attack: (prev[log.attacker]?.attack || 0) + 1,
           },
         }));
 
@@ -226,48 +259,42 @@ export default function BattleScreen({ route, navigation }) {
             ...prev,
             [log.target]: {
               ...prev[log.target],
-              hit: prev[log.target].hit + 1,
+              hit: (prev[log.target]?.hit || 0) + 1,
             },
           }));
           setHeroes((cur) =>
             cur.map((hero) => {
               let updatedHero = hero;
-
               if (hero.instanceId === log.attacker) {
                 updatedHero = {
                   ...updatedHero,
                   currentMp: log.attackerMpAfter ?? updatedHero.currentMp,
                 };
               }
-
               if (hero.instanceId === log.target) {
                 updatedHero = {
                   ...updatedHero,
                   currentHp: log.targetRemainingHp,
                 };
               }
-
               return updatedHero;
             }),
           );
           setEnemies((cur) =>
             cur.map((enemy) => {
               let updatedEnemy = enemy;
-
               if (enemy.instanceId === log.attacker) {
                 updatedEnemy = {
                   ...updatedEnemy,
                   currentMp: log.attackerMpAfter ?? updatedEnemy.currentMp,
                 };
               }
-
               if (enemy.instanceId === log.target) {
                 updatedEnemy = {
                   ...updatedEnemy,
                   currentHp: log.targetRemainingHp,
                 };
               }
-
               return updatedEnemy;
             }),
           );
@@ -286,12 +313,27 @@ export default function BattleScreen({ route, navigation }) {
         currentIndex++;
         setTimeout(nextLog, 700 * speed);
       } else {
+        // AL TERMINAR EL COMBATE: Siempre mostramos la pantalla de resultados primero
         setTimeout(() => {
           if (abortBattleRef.current) return;
+          setShowResults(true);
+
+          // Si el modo REPEAT está encendido y ganamos, iniciamos una cuenta atrás controlada
           if (isRepeatRef.current && victory) {
-            startBattleRef.current?.();
-          } else {
-            setShowResults(true);
+            let timeLeft = 3;
+            setRepeatCountdown(timeLeft);
+
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = setInterval(() => {
+              timeLeft -= 1;
+              if (timeLeft <= 0) {
+                clearInterval(countdownIntervalRef.current);
+                setRepeatCountdown(null);
+                startBattleRef.current?.(); // Lanza el siguiente combate de forma segura
+              } else {
+                setRepeatCountdown(timeLeft);
+              }
+            }, 1000);
           }
         }, 1500);
       }
@@ -301,7 +343,10 @@ export default function BattleScreen({ route, navigation }) {
   }, []);
 
   const startBattle = useCallback(async () => {
+    clearInterval(countdownIntervalRef.current);
+    setRepeatCountdown(null);
     abortBattleRef.current = true;
+
     setTimeout(async () => {
       abortBattleRef.current = false;
       setLoading(true);
@@ -369,11 +414,13 @@ export default function BattleScreen({ route, navigation }) {
     startBattle();
     return () => {
       abortBattleRef.current = true;
+      clearInterval(countdownIntervalRef.current);
     };
   }, [startBattle]);
 
   const goToHeroSelection = useCallback(
     (targetStage) => {
+      clearInterval(countdownIntervalRef.current);
       navigation.reset({
         index: 2,
         routes: [
@@ -385,6 +432,43 @@ export default function BattleScreen({ route, navigation }) {
     },
     [navigation],
   );
+
+  const goToNextStageDirect = useCallback(
+    (targetStage) => {
+      if (!targetStage?.stageId) {
+        return;
+      }
+
+      const currentEnergy = battleResult?.userStats?.energy ?? 0;
+      const nextStageCost = targetStage.energyCost ?? 0;
+
+      // Fallback: si no alcanza la energía para la siguiente fase,
+      // redirige a selección de equipo en lugar de mostrar error y volver atrás.
+      if (currentEnergy < nextStageCost) {
+        goToHeroSelection(targetStage);
+        return;
+      }
+
+      clearInterval(countdownIntervalRef.current);
+      navigation.replace("Battle", {
+        stageId: targetStage.stageId,
+        stage: targetStage,
+        selectedHeroIds,
+      });
+    },
+    [
+      battleResult?.userStats?.energy,
+      goToHeroSelection,
+      navigation,
+      selectedHeroIds,
+    ],
+  );
+
+  const cancelRepeatMode = () => {
+    clearInterval(countdownIntervalRef.current);
+    setRepeatCountdown(null);
+    setIsRepeat(false);
+  };
 
   const battleBackgroundSource = battleResult?.backgroundImageUri
     ? { uri: `${SERVER_URL}${battleResult.backgroundImageUri}` }
@@ -401,9 +485,12 @@ export default function BattleScreen({ route, navigation }) {
     );
 
   return (
-    <View style={styles.mainContainer}>
+    <View style={[styles.mainContainer, { paddingTop: insets.top }]}>
       {/* 1. CAMPO DE BATALLA (ZONA SUPERIOR) */}
-      <ImageBackground source={battleBackgroundSource} style={styles.battlefield}>
+      <ImageBackground
+        source={battleBackgroundSource}
+        style={styles.battlefield}
+      >
         <View style={styles.battleLogPanel}>
           {logsToDisplay.map((logLine, index) => (
             <Text
@@ -462,8 +549,10 @@ export default function BattleScreen({ route, navigation }) {
         </View>
       </ImageBackground>
 
-      {/* 2. PANEL DE CONTROL (ZONA INFERIOR) */}
-      <View style={styles.uiPanel}>
+      {/* 2. PANEL DE CONTROL (ZONA INFERIOR) - Protegido contra la barra del sistema mediante insets.bottom */}
+      <View
+        style={[styles.uiPanel, { paddingBottom: Math.max(12, insets.bottom) }]}
+      >
         <View style={styles.unitGrid}>
           {[0, 1, 2, 3, 4, 5].map((index) => {
             const hero = heroes[index];
@@ -544,6 +633,16 @@ export default function BattleScreen({ route, navigation }) {
               {`Fase ${stage.stageNumber}: ${stage.name}`}
             </Text>
           ) : null}
+
+          {/* Alerta Medieval de recompensa por primera victoria (First Clear) */}
+          {battleResult.firstClearReward && (
+            <View style={styles.firstClearBadge}>
+              <Text style={styles.firstClearBadgeText}>
+                ⚔️ ¡PRIMERA VICTORIA EN LA ZONA! ⚔️
+              </Text>
+            </View>
+          )}
+
           <View style={styles.resultsSummaryCard}>
             <Text style={styles.resultsSummaryLine}>
               Turnos: {battleResult.turns}
@@ -551,6 +650,7 @@ export default function BattleScreen({ route, navigation }) {
             <Text style={styles.resultsSummaryLine}>
               Héroes en pie: {battleResult.heroesRemaining}
             </Text>
+
             {battleResult.rewards ? (
               <>
                 <Text style={styles.resultsSummaryLine}>
@@ -559,8 +659,20 @@ export default function BattleScreen({ route, navigation }) {
                 <Text style={styles.resultsSummaryLine}>
                   Oro: +{battleResult.rewards.gold}
                 </Text>
-                <Text style={styles.resultsSummaryLine}>
-                  Gemas: +{battleResult.rewards.gems}
+                {/* Mostramos las 1000 gemas inyectadas dinámicamente si es First Clear */}
+                <Text
+                  style={[
+                    styles.resultsSummaryLine,
+                    battleResult.firstClearReward && {
+                      color: "#FFD700",
+                      fontWeight: "bold",
+                    },
+                  ]}
+                >
+                  Gemas: +
+                  {battleResult.firstClearReward
+                    ? battleResult.gemsEarned
+                    : battleResult.rewards.gems || 0}
                 </Text>
               </>
             ) : (
@@ -575,39 +687,64 @@ export default function BattleScreen({ route, navigation }) {
                 {battleResult.userStats.progress?.stage || 1}
               </Text>
             ) : null}
+
+            {/* Texto informativo de la cuenta atrás de REPEAT */}
+            {repeatCountdown !== null && (
+              <Text style={styles.countdownText}>
+                Siguiente combate automático en:{" "}
+                <Text style={{ color: "#FFD700", fontWeight: "bold" }}>
+                  {repeatCountdown}s
+                </Text>
+              </Text>
+            )}
           </View>
+
           <View style={styles.resultsButtons}>
-            <TouchableOpacity
-              style={styles.actionBtn}
-              onPress={() => startBattle()}
-            >
-              <Text style={styles.actionBtnText}>REINTENTAR</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.secondaryActionBtn]}
-              onPress={() => goToHeroSelection(stage)}
-            >
-              <Text style={styles.actionBtnText}>CAMBIAR EQUIPO</Text>
-            </TouchableOpacity>
-            {battleResult.victory && nextStage ? (
+            {repeatCountdown !== null ? (
               <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => goToHeroSelection(nextStage)}
+                style={[styles.actionBtn, { backgroundColor: "#FF3333" }]}
+                onPress={cancelRepeatMode}
               >
-                <Text style={styles.actionBtnText}>SIGUIENTE FASE</Text>
+                <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
+                  DETENER REPEAT
+                </Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.secondaryActionBtn]}
-                onPress={() => {
-                  navigation.reset({
-                    index: 1,
-                    routes: [{ name: "Home" }, { name: "Campaign" }],
-                  });
-                }}
-              >
-                <Text style={styles.actionBtnText}>VOLVER A CAMPAÑA</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={() => startBattle()}
+                >
+                  <Text style={styles.actionBtnText}>REINTENTAR</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.secondaryActionBtn]}
+                  onPress={() => goToHeroSelection(stage)}
+                >
+                  <Text style={styles.actionBtnText}>CAMBIAR EQUIPO</Text>
+                </TouchableOpacity>
+                {battleResult.victory && nextStage ? (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => goToNextStageDirect(nextStage)}
+                  >
+                    <Text style={styles.actionBtnText}>SIGUIENTE FASE</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.secondaryActionBtn]}
+                    onPress={() => {
+                      clearInterval(countdownIntervalRef.current);
+                      navigation.reset({
+                        index: 1,
+                        routes: [{ name: "Home" }, { name: "Campaign" }],
+                      });
+                    }}
+                  >
+                    <Text style={styles.actionBtnText}>VOLVER A CAMPAÑA</Text>
+                  </TouchableOpacity>
+                )}
+              </>
             )}
           </View>
         </View>
@@ -641,20 +778,20 @@ const styles = StyleSheet.create({
   battlefield: {
     flex: 1.2,
     justifyContent: "space-around",
-    paddingVertical: 40,
+    paddingVertical: 20,
   },
   battleLogPanel: {
     position: "absolute",
-    top: 18,
+    top: 10,
     left: 16,
     right: 16,
     zIndex: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     borderWidth: 1,
     borderColor: "rgba(255, 215, 0, 0.35)",
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   battleLogText: {
     color: "rgba(255,255,255,0.72)",
@@ -667,6 +804,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 40,
   },
   heroesRow: {
     flexDirection: "row",
@@ -679,11 +817,11 @@ const styles = StyleSheet.create({
   spriteContainer: {
     width: width / 3,
     alignItems: "center",
-    marginVertical: 10,
+    marginVertical: 6,
   },
   spriteWrapper: {
-    width: 80,
-    height: 80,
+    width: 75,
+    height: 75,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -725,7 +863,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#001529",
     borderTopWidth: 2,
     borderColor: "#4a90e2",
-    padding: 8,
+    paddingHorizontal: 12,
+    paddingTop: 10,
   },
   unitGrid: {
     flex: 1,
@@ -733,10 +872,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between",
     alignContent: "space-between",
-    marginBottom: 10,
   },
   unitCard: {
-    width: "48%",
+    width: "49%",
     height: "31%",
     backgroundColor: "rgba(0,40,80,0.8)",
     borderWidth: 1,
@@ -750,27 +888,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  unitCardName: { color: "#FFF", fontSize: 11, fontWeight: "bold" },
+  unitCardName: {
+    color: "#FFF",
+    fontSize: 10,
+    fontWeight: "bold",
+    flex: 1,
+    marginRight: 4,
+  },
   limitText: {
     color: "#FF4400",
     fontSize: 9,
     fontWeight: "bold",
     fontStyle: "italic",
   },
-  statsContainer: { flex: 1, justifyContent: "flex-end", marginTop: 4 },
+  statsContainer: { flex: 1, justifyContent: "flex-end", marginTop: 2 },
   statLine: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 2,
   },
-  statLabel: { color: "#4a90e2", fontSize: 10, fontWeight: "bold" },
-  statValue: { color: "#FFF", fontSize: 10, fontWeight: "bold" },
+  statLabel: { color: "#4a90e2", fontSize: 9, fontWeight: "bold" },
+  statValue: { color: "#FFF", fontSize: 9, fontWeight: "bold" },
   barBackground: {
-    height: 6,
+    height: 5,
     backgroundColor: "#111",
     width: "100%",
-    marginBottom: 4,
+    marginBottom: 2,
     borderRadius: 3,
     overflow: "hidden",
   },
@@ -784,12 +927,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   footerBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
     backgroundColor: "#002b4d",
     borderWidth: 1,
     borderColor: "#4a90e2",
-    borderRadius: 4,
+    borderRadius: 6,
   },
   footerBtnActive: { backgroundColor: "#4a90e2", borderColor: "#FFF" },
   footerBtnText: { color: "#4a90e2", fontSize: 12, fontWeight: "bold" },
@@ -798,52 +941,87 @@ const styles = StyleSheet.create({
   // Results
   resultsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.8)",
+    backgroundColor: "rgba(0,0,0,0.85)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 100,
+    paddingHorizontal: 20,
   },
   resultTitle: {
     color: "#FFD700",
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 10,
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowRadius: 4,
   },
   resultStageTitle: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: 16,
     marginBottom: 12,
     fontWeight: "600",
   },
+  firstClearBadge: {
+    backgroundColor: "rgba(212, 175, 55, 0.25)",
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginBottom: 14,
+  },
+  firstClearBadgeText: {
+    color: "#FFD700",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
   resultsSummaryCard: {
-    width: "84%",
-    backgroundColor: "rgba(0, 21, 41, 0.92)",
+    width: "90%",
+    backgroundColor: "rgba(0, 21, 41, 0.95)",
     borderWidth: 1,
     borderColor: "#4a90e2",
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 16,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   resultsSummaryLine: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 6,
   },
   resultsSummaryMeta: {
     color: "#9dc7ff",
-    fontSize: 13,
+    fontSize: 12,
     textAlign: "center",
     marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(74, 144, 226, 0.2)",
+    paddingTop: 8,
+  },
+  countdownText: {
+    color: "#AAA",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 12,
+    fontStyle: "italic",
   },
   resultsButtons: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     flexWrap: "wrap",
     justifyContent: "center",
+    width: "100%",
   },
-  actionBtn: { backgroundColor: "#FFD700", padding: 15, borderRadius: 30 },
+  actionBtn: {
+    backgroundColor: "#FFD700",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 25,
+    minWidth: 120,
+    alignItems: "center",
+  },
   secondaryActionBtn: { backgroundColor: "#d6aa33" },
   actionBtnText: { fontWeight: "bold", color: "#000", fontSize: 12 },
 });

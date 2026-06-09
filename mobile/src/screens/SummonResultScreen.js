@@ -17,7 +17,13 @@ import Animated, {
 } from "react-native-reanimated";
 import GameBackground from "../components/GameBackground";
 import { SERVER_URL } from "../services/api";
-import { elevation, palette, radii, spacing, typography } from "../theme/tokens";
+import {
+  elevation,
+  palette,
+  radii,
+  spacing,
+  typography,
+} from "../theme/tokens";
 
 const RARITY_COLORS = {
   5: "#FFD700",
@@ -55,21 +61,21 @@ function SummonRevealCard({
 
   useEffect(() => {
     flip.value = withTiming(isRevealed ? 1 : 0, {
-      duration: 820,
+      duration: 950, // <-- Subido de 820ms a 950ms para que el giro de la carta sea más majestuoso
       easing: Easing.out(Easing.cubic),
     });
   }, [flip, isRevealed]);
 
   useEffect(() => {
     focus.value = withTiming(isFocused ? 1 : 0, {
-      duration: 340,
+      duration: 450, // <-- Subido de 340ms a 450ms para un acercamiento más suave a la pantalla
       easing: Easing.out(Easing.cubic),
     });
   }, [focus, isFocused]);
 
   useEffect(() => {
     spotlight.value = withTiming(isLegendarySpotlight ? 1 : 0, {
-      duration: 420,
+      duration: 550, // <-- Más transicionado para el escalado del 5 estrellas
       easing: Easing.out(Easing.cubic),
     });
   }, [isLegendarySpotlight, spotlight]);
@@ -101,15 +107,10 @@ function SummonRevealCard({
       [0, 1],
       [interpolate(focus.value, [0, 1], [1, 1.12]), 2.35],
     );
-    const opacity = stageMode ? 1 : 1;
 
     return {
-      opacity,
       zIndex: isLegendarySpotlight ? 50 : isFocused ? 10 : 1,
-      transform: [
-        { translateY },
-        { scale },
-      ],
+      transform: [{ translateY }, { scale }],
     };
   });
 
@@ -146,7 +147,9 @@ function SummonRevealCard({
           {
             borderColor: accentColor,
             shadowColor: accentColor,
-            backgroundColor: isHighestRarity ? "rgba(50, 40, 0, 0.96)" : "rgba(10, 14, 20, 0.96)",
+            backgroundColor: isHighestRarity
+              ? "rgba(50, 40, 0, 0.96)"
+              : "rgba(10, 14, 20, 0.96)",
           },
           frontStyle,
         ]}
@@ -156,7 +159,7 @@ function SummonRevealCard({
           style={styles.heroImage}
           resizeMode="cover"
         />
-        <Text style={[styles.starsText, { color: accentColor }]}> 
+        <Text style={[styles.starsText, { color: accentColor }]}>
           {"★".repeat(rarity)}
         </Text>
         <Text style={styles.heroName} numberOfLines={1}>
@@ -169,7 +172,9 @@ function SummonRevealCard({
           </View>
         ) : (
           <View style={[styles.statusBadge, styles.dupeBadge]}>
-            <Text style={styles.statusBadgeText}>+{item.addedResonance} Resonancia</Text>
+            <Text style={styles.statusBadgeText}>
+              +{item.addedResonance} Resonancia
+            </Text>
           </View>
         )}
       </Animated.View>
@@ -194,14 +199,18 @@ function RevealFanCard({ item, state, index, total }) {
         {
           borderColor: rarityColor,
           backgroundColor: bgColor,
-          transform: [{ translateX: layout.x }, { translateY: layout.y }, { rotate: `${layout.rotate}deg` }],
+          transform: [
+            { translateX: layout.x },
+            { translateY: layout.y },
+            { rotate: `${layout.rotate}deg` },
+          ],
           zIndex: isActive ? 30 : index + 1,
           opacity: state === "pending" ? 0.76 : 1,
         },
         isActive && styles.fanCardActive,
       ]}
     >
-      <Text style={[styles.fanStars, { color: rarityColor }]}> 
+      <Text style={[styles.fanStars, { color: rarityColor }]}>
         {"★".repeat(item.hero?.rarity || 4)}
       </Text>
       <Text style={styles.fanName} numberOfLines={1}>
@@ -224,29 +233,43 @@ function LegendarySpotlightPanel({ item }) {
   }, [panelProgress]);
 
   useEffect(() => {
+    // 🔥 MODIFICADO: Aumentamos el tiempo que el splashArt del 5 estrellas se queda quieto en el centro.
+    // Antes tardaba 820ms en cerrarse, ahora le damos 2600ms para que impacte visualmente.
     const closeTimer = setTimeout(() => {
       setIsClosing(true);
       closingProgress.value = withTiming(1, {
-        duration: 520,
+        duration: 650, // Cierre ligeramente más pausado y elegante
         easing: Easing.inOut(Easing.cubic),
       });
-    }, 820);
+    }, 2600);
 
     return () => clearTimeout(closeTimer);
   }, [closingProgress]);
 
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(panelProgress.value, [0, 1], [0, 1]) * interpolate(closingProgress.value, [0, 1], [1, 0]),
+    opacity:
+      interpolate(panelProgress.value, [0, 1], [0, 1]) *
+      interpolate(closingProgress.value, [0, 1], [1, 0]),
   }));
 
   const artStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(panelProgress.value, [0, 0.35, 1], [0, 0.7, 1]) * interpolate(closingProgress.value, [0, 1], [1, 0.92]),
+    opacity:
+      interpolate(panelProgress.value, [0, 0.35, 1], [0, 0.7, 1]) *
+      interpolate(closingProgress.value, [0, 1], [1, 0.92]),
     transform: [
       {
-        scale: interpolate(closingProgress.value, [0, 1], [interpolate(panelProgress.value, [0, 1], [1.18, 1]), 0.34]),
+        scale: interpolate(
+          closingProgress.value,
+          [0, 1],
+          [interpolate(panelProgress.value, [0, 1], [1.18, 1]), 0.34],
+        ),
       },
       {
-        translateY: interpolate(closingProgress.value, [0, 1], [interpolate(panelProgress.value, [0, 1], [16, 0]), 265]),
+        translateY: interpolate(
+          closingProgress.value,
+          [0, 1],
+          [interpolate(panelProgress.value, [0, 1], [16, 0]), 265],
+        ),
       },
       {
         translateX: interpolate(closingProgress.value, [0, 1], [0, 96]),
@@ -255,17 +278,27 @@ function LegendarySpotlightPanel({ item }) {
   }));
 
   const titleStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(panelProgress.value, [0.15, 0.45], [0, 1]) * interpolate(closingProgress.value, [0, 0.45], [1, 0]),
-    transform: [{ translateY: interpolate(panelProgress.value, [0.15, 0.45], [14, 0]) }],
+    opacity:
+      interpolate(panelProgress.value, [0.15, 0.45], [0, 1]) *
+      interpolate(closingProgress.value, [0, 0.45], [1, 0]),
+    transform: [
+      { translateY: interpolate(panelProgress.value, [0.15, 0.45], [14, 0]) },
+    ],
   }));
 
   const starsStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(panelProgress.value, [0.35, 0.65], [0, 1]) * interpolate(closingProgress.value, [0, 0.55], [1, 0]),
-    transform: [{ scale: interpolate(panelProgress.value, [0.35, 0.65], [0.8, 1]) }],
+    opacity:
+      interpolate(panelProgress.value, [0.35, 0.65], [0, 1]) *
+      interpolate(closingProgress.value, [0, 0.55], [1, 0]),
+    transform: [
+      { scale: interpolate(panelProgress.value, [0.35, 0.65], [0.8, 1]) },
+    ],
   }));
 
   const nameStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(panelProgress.value, [0.5, 0.85], [0, 1]) * interpolate(closingProgress.value, [0, 0.65], [1, 0]),
+    opacity:
+      interpolate(panelProgress.value, [0.5, 0.85], [0, 1]) *
+      interpolate(closingProgress.value, [0, 0.65], [1, 0]),
     transform: [
       { translateY: interpolate(panelProgress.value, [0.5, 0.85], [20, 0]) },
       { scale: interpolate(closingProgress.value, [0, 1], [1, 0.92]) },
@@ -273,7 +306,10 @@ function LegendarySpotlightPanel({ item }) {
   }));
 
   return (
-    <Animated.View style={[styles.legendaryPanelBackdrop, backdropStyle]} pointerEvents="none">
+    <Animated.View
+      style={[styles.legendaryPanelBackdrop, backdropStyle]}
+      pointerEvents="none"
+    >
       <Animated.View style={[styles.legendaryPanel, artStyle]}>
         <Image
           source={{ uri: `${SERVER_URL}${item.hero.splashArt}` }}
@@ -292,9 +328,7 @@ function LegendarySpotlightPanel({ item }) {
           {item.hero.name}
         </Animated.Text>
 
-        {isClosing && (
-          <View style={styles.legendaryPanelTrail} />
-        )}
+        {isClosing && <View style={styles.legendaryPanelTrail} />}
       </Animated.View>
     </Animated.View>
   );
@@ -323,48 +357,57 @@ export default function SummonResultScreen({ route, navigation }) {
     setFocusedIndex(-1);
     setLegendarySpotlightIndex(null);
 
-    let currentDelay = 280;
+    // 🔥 EL NUEVO TEMPO DE REVELACIÓN (Frenado estratégico)
+    let currentDelay = 400; // Delay inicial antes de arrancar la primera carta (subido de 280ms)
 
     results.forEach((result, index) => {
+      // 1. Enfocamos la carta en el centro
       timersRef.current.push(
         setTimeout(() => {
           setFocusedIndex(index);
         }, currentDelay),
       );
 
-      currentDelay += 430;
+      // Esperamos un momento con la carta de espaldas enfocada
+      currentDelay += 600; // <-- Subido de 430ms. Más suspense.
 
       if (result.hero?.rarity === 5) {
+        // 2A. Es un HÉROE LEGENDARIO
         timersRef.current.push(
           setTimeout(() => {
             setLegendarySpotlightIndex(index);
-            setRevealedCount(index + 1);
+            setRevealedCount(index + 1); // Se voltea la carta
           }, currentDelay),
         );
 
-        currentDelay += 1760;
+        // Dejamos que el panel completo de 5 estrellas brille con orgullo en la pantalla
+        currentDelay += 3600; // <-- ¡SUBIDO BRUTALMENTE de 1760ms a 3600ms! (Le da tiempo a la animación interna de respirar)
 
+        // Quitamos el spotlight gigante para regresar a la secuencia normal
         timersRef.current.push(
           setTimeout(() => {
             setLegendarySpotlightIndex(null);
           }, currentDelay),
         );
       } else {
+        // 2B. Es un héroe común (1★ a 4★)
         timersRef.current.push(
           setTimeout(() => {
-            setRevealedCount(index + 1);
+            setRevealedCount(index + 1); // Se voltea la carta
           }, currentDelay),
         );
       }
 
-      currentDelay += 260;
+      // Tiempo que se queda la carta boca arriba antes de saltar a la siguiente del mazo
+      currentDelay += 900; // <-- ¡Subido de 260ms a 900ms! Esto evita que vayan solapadas e histéricas.
     });
 
+    // Finalización de la secuencia y renderizado de la cuadrícula completa (Grid)
     const completeTimer = setTimeout(() => {
       setFocusedIndex(-1);
       setLegendarySpotlightIndex(null);
       setRevealComplete(true);
-    }, currentDelay + 160);
+    }, currentDelay + 300);
 
     timersRef.current.push(completeTimer);
 
@@ -412,7 +455,9 @@ export default function SummonResultScreen({ route, navigation }) {
               isRevealed={activeStageIndex < revealedCount}
               isFocused
               stageMode
-              isLegendarySpotlight={activeStageIndex === legendarySpotlightIndex}
+              isLegendarySpotlight={
+                activeStageIndex === legendarySpotlightIndex
+              }
             />
 
             <View style={styles.fanDeckWrap}>
@@ -480,7 +525,10 @@ export default function SummonResultScreen({ route, navigation }) {
         </View>
 
         <TouchableOpacity
-          style={[styles.confirmButton, !revealComplete && styles.confirmButtonDisabled]}
+          style={[
+            styles.confirmButton,
+            !revealComplete && styles.confirmButtonDisabled,
+          ]}
           onPress={() => navigation.navigate("Summon")}
           disabled={!revealComplete}
         >
@@ -493,6 +541,7 @@ export default function SummonResultScreen({ route, navigation }) {
   );
 }
 
+// Mantenemos tus estilos exactamente iguales
 const styles = StyleSheet.create({
   container: {
     flex: 1,

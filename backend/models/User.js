@@ -83,6 +83,10 @@ const UserSchema = new mongoose.Schema({
     zone: { type: Number, default: 1 },
     stage: { type: Number, default: 1 },
   },
+  clearedStages: {
+    type: [String],
+    default: [],
+  },
   createdAt: {
     type: Date,
     default: Date.now,

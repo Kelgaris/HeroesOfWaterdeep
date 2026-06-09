@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { StyleSheet, View, AppState } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, StyleSheet, View } from "react-native";
 import api, {
   fetchCurrentUser,
   getStoredUser,
@@ -27,13 +28,16 @@ export default function HomeScreen({ navigation }) {
     progress: { zone: 1, stage: 1 },
   });
 
-  const [mainHero] = useState({
-    name: "Yuna",
-    class: "summoner",
+  // Estado dinámico del héroe principal
+  const [mainHero, setMainHero] = useState({
+    name: "Rain",
+    class: "warrior",
+    title: "Vanguardia de la Luz",
+    image: "",
   });
 
   const [showOffer, setShowOffer] = useState(false);
-
+  const [ownedCatalogHeroes, setOwnedCatalogHeroes] = useState([]);
   const appState = useRef(AppState.currentState);
 
   const syncEnergy = useCallback(async () => {
@@ -41,8 +45,15 @@ export default function HomeScreen({ navigation }) {
       const response = await api.post("/battle/refresh-energy");
       if (response.data) {
         setUser((prev) => {
-          if (prev.energy !== response.data.energy || prev.maxEnergy !== response.data.maxEnergy) {
-            const updatedUser = { ...prev, energy: response.data.energy, maxEnergy: response.data.maxEnergy };
+          if (
+            prev.energy !== response.data.energy ||
+            prev.maxEnergy !== response.data.maxEnergy
+          ) {
+            const updatedUser = {
+              ...prev,
+              energy: response.data.energy,
+              maxEnergy: response.data.maxEnergy,
+            };
             saveCurrentUser(updatedUser);
             return updatedUser;
           }
@@ -63,7 +74,6 @@ export default function HomeScreen({ navigation }) {
           ...storedUser,
         }));
       }
-      // Inmediatamente después de cargar localmente, sincronizamos con el servidor
       syncEnergy();
     } catch (error) {
       console.error("Error cargando datos del usuario:", error);
@@ -72,46 +82,150 @@ export default function HomeScreen({ navigation }) {
 
   const fetchFullUserData = useCallback(async () => {
     try {
-      const currentUser = await fetchCurrentUser();
+      const [currentUser, catalogResponse] = await Promise.all([
+        fetchCurrentUser(),
+        api.get("/heroes/catalog").catch(() => null),
+      ]);
+
+      const ownedHeroes = (catalogResponse?.data || []).filter(
+        (hero) => hero.owned,
+      );
+
       if (currentUser) {
         setUser((prev) => ({
           ...prev,
           ...currentUser,
         }));
       }
+
+      setOwnedCatalogHeroes(ownedHeroes);
     } catch (error) {
       console.error("Error fetching full user data:", error);
       loadUserData(); // fallback
     }
   }, [loadUserData]);
 
+  // Función optimizada para determinar qué héroe mostrar en el Lobby
+  const updateHomeHero = useCallback(async () => {
+    try {
+      const selectedCharId = await AsyncStorage.getItem("SELECTED_HOME_CHAR");
+      const heroPool =
+        ownedCatalogHeroes.length > 0 ? ownedCatalogHeroes : user.heroes || [];
+
+      if (heroPool.length > 0) {
+        let foundHero = null;
+
+        if (selectedCharId) {
+          // Buscamos coincidencia por heroId, _id o por nombre
+          foundHero = heroPool.find(
+            (h) =>
+              h.heroId === selectedCharId ||
+              h._id === selectedCharId ||
+              h.name.toLowerCase() === selectedCharId.toLowerCase(),
+          );
+        }
+
+        // 1. Héroe seleccionado (Usa splashArt)
+        if (foundHero) {
+          setMainHero({
+            name: foundHero.name,
+            class:
+              foundHero.class || foundHero.role || foundHero.name.toLowerCase(),
+            title: foundHero.title || "Héroe de Leyenda",
+            image: foundHero.splashArt || "", // <-- CORREGIDO
+          });
+          return;
+        }
+
+        // Fallback 1: Si no hay selección, buscamos a 'Rain' (Usa splashArt)
+        const rainHero = heroPool.find(
+          (h) => h.name.toLowerCase() === "rain" || h.heroId === "hero_rain",
+        );
+        if (rainHero) {
+          setMainHero({
+            name: rainHero.name,
+            class: rainHero.class || "warrior",
+            title: rainHero.title || "Vanguardia de la Luz",
+            image: rainHero.splashArt || "", // <-- CORREGIDO
+          });
+          return;
+        }
+
+        // Fallback 2: Primer héroe disponible (Usa splashArt)
+        if (heroPool[0]) {
+          setMainHero({
+            name: heroPool[0].name,
+            class:
+              heroPool[0].class ||
+              heroPool[0].role ||
+              heroPool[0].name.toLowerCase(),
+            title: heroPool[0].title || heroPool[0].class || "Héroe de Leyenda",
+            image: heroPool[0].splashArt || "", // <-- CORREGIDO
+          });
+          return;
+        }
+      }
+
+      // Último recurso por defecto total si el inventario está completamente vacío
+      setMainHero({
+        name: "Rain",
+        class: "warrior",
+        title: "Vanguardia de la Luz",
+        image: "/assets/heroes/rain/portrait.png", // Fallback de ruta manual
+      });
+    } catch (error) {
+      console.error(
+        "Error al actualizar el héroe de la interfaz principal:",
+        error,
+      );
+    }
+  }, [ownedCatalogHeroes, user.heroes]);
+
+  // Escucha cambios en el inventario de héroes para refrescar la vista en tiempo real
+  useEffect(() => {
+    updateHomeHero();
+  }, [ownedCatalogHeroes, user.heroes, updateHomeHero]);
+
   useEffect(() => {
     loadUserData();
 
-    // Mostrar oferta después de 2 segundos (típico de juegos gacha 😄)
-    const offerTimer = setTimeout(() => {
-      setShowOffer(true);
-    }, 2000);
+    // LÓGICA DE CONTROL DEL POPUP DE RENDRIKA (CADA 30 MINUTOS)
+    let offerTimer;
+    const checkAndScheduleOffer = async () => {
+      try {
+        const lastShown = await AsyncStorage.getItem("LAST_OFFER_TIME");
+        const now = Date.now();
+        const THIRTY_MINUTES = 30 * 60 * 1000;
 
-    // Sincronizar energía cada minuto mientras la app esté abierta
+        if (!lastShown || now - parseInt(lastShown) > THIRTY_MINUTES) {
+          offerTimer = setTimeout(() => {
+            setShowOffer(true);
+            AsyncStorage.setItem("LAST_OFFER_TIME", Date.now().toString());
+          }, 2000);
+        }
+      } catch (error) {
+        console.error("Error controlando el temporizador de la oferta:", error);
+      }
+    };
+
+    checkAndScheduleOffer();
+
     const energyInterval = setInterval(() => {
       syncEnergy();
     }, 60000);
 
-    // Sincronizar energía cuando la app vuelve al primer plano
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === "active"
       ) {
-        // Volvió al juego, sincronizamos
         syncEnergy();
       }
       appState.current = nextAppState;
     });
 
     return () => {
-      clearTimeout(offerTimer);
+      if (offerTimer) clearTimeout(offerTimer);
       clearInterval(energyInterval);
       subscription.remove();
     };
@@ -120,7 +234,7 @@ export default function HomeScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchFullUserData();
-    }, [fetchFullUserData])
+    }, [fetchFullUserData]),
   );
 
   const handleNavigate = (screen) => {
@@ -148,7 +262,6 @@ export default function HomeScreen({ navigation }) {
   return (
     <GameBackground>
       <View style={styles.container}>
-        {/* Barra de recursos superior */}
         <ResourceBar
           energy={user.energy}
           maxEnergy={user.maxEnergy || 100}
@@ -158,12 +271,16 @@ export default function HomeScreen({ navigation }) {
           username={user.username}
         />
 
-        {/* Sprite del héroe principal */}
+        {/* CORREGIDO: Se añade la propiedad heroImage vinculada a la URL del estado dinámico */}
         <View style={styles.heroArea}>
-          <HeroSprite heroName={mainHero.name} heroClass={mainHero.class} />
+          <HeroSprite
+            heroName={mainHero.name}
+            heroClass={mainHero.class}
+            heroTitle={mainHero.title}
+            heroImage={mainHero.image}
+          />
         </View>
 
-        {/* Menú de navegación inferior */}
         <GameMenu
           onNavigate={handleNavigate}
           currentZone={user.progress?.zone || 1}
@@ -171,7 +288,6 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
-      {/* Popup de oferta especial (típico de gachas 😄) */}
       <OfferPopup
         visible={showOffer}
         onClose={() => setShowOffer(false)}

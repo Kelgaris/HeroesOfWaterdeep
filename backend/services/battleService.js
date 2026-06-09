@@ -8,6 +8,7 @@ const { Enemy, BASE_ENEMIES } = require("../models/Enemy");
 const ENERGY_REGEN_RATE = 1; // Energía por minuto
 const MAX_ENERGY = 100;
 const MAX_MP = 100;
+const ZONE_CLEAR_GEMS_BONUS = 1000;
 const BASIC_MP_GAIN = 35;
 const MAX_ENEMY_UNITS = 6;
 const STAGE_DIFFICULTY_MULTIPLIER = {
@@ -749,6 +750,7 @@ async function simulateBattle(usuarioId, stageId, selectedHeroIds) {
     experience: 0,
     gold: 0,
     gems: 0,
+    zoneClearBonusGems: 0,
   };
 
   if (victory) {
@@ -756,6 +758,7 @@ async function simulateBattle(usuarioId, stageId, selectedHeroIds) {
       experience: stageEconomy.rewards.experience,
       gold: stageEconomy.rewards.gold,
       gems: stageEconomy.rewards.gems,
+      zoneClearBonusGems: 0,
     };
 
     usuario.experience += rewards.experience;
@@ -780,6 +783,11 @@ async function simulateBattle(usuarioId, stageId, selectedHeroIds) {
       if (usuario.progress.stage > stagesInZone) {
         usuario.progress.zone += 1;
         usuario.progress.stage = 1;
+
+        // Bonus por completar una zona completa (no por stage).
+        rewards.gems += ZONE_CLEAR_GEMS_BONUS;
+        rewards.zoneClearBonusGems = ZONE_CLEAR_GEMS_BONUS;
+        usuario.gems += ZONE_CLEAR_GEMS_BONUS;
       }
     }
 
