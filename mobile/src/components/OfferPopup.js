@@ -15,7 +15,7 @@ import { getAssetURL } from "../services/api";
 const { width, height } = Dimensions.get("window");
 
 // Imagen de Hendrikka (local)
-const hendrikkaImage = require("../assets/heroes/hendrikka/Render Hendrikka.png");
+const hendrikkaImage = require("../assets/heroes/hendrikka/portrait.png");
 const pergaminoDoradoImage = require("../assets/objetcs/pergaminoDorado.png");
 
 // Ofertas disponibles
@@ -28,10 +28,20 @@ const OFFERS = [
     price: "4,99€",
     discount: "-75%",
     items: [
-      { type: "hero", heroId: "hero_hendrikka", name: "Hendrikka, la hija del cuervo", icon: "⚔️" },
+      {
+        type: "hero",
+        heroId: "hero_hendrikka",
+        name: "Hendrikka, la hija del cuervo",
+        icon: "⚔️",
+      },
       { type: "gems", amount: 1000, icon: "💎" },
       { type: "gold", amount: 50000, icon: "💰" },
-      { type: "scroll_large", amount: 10, name: "Pergaminos Dorados", useImage: true },
+      {
+        type: "scroll_large",
+        amount: 10,
+        name: "Pergaminos Dorados",
+        useImage: true,
+      },
     ],
     gradient: ["#FFD700", "#FF8C00"],
     timeLeft: "23:59:59",
@@ -45,7 +55,12 @@ const OFFERS = [
     price: "9,99€",
     discount: "-33%",
     items: [
-      { type: "gems", amount: 300, icon: "💎", note: "¡Cada día durante 30 días!" },
+      {
+        type: "gems",
+        amount: 300,
+        icon: "💎",
+        note: "¡Cada día durante 30 días!",
+      },
       { type: "gems", amount: 500, icon: "💎", note: "Bonus inmediato" },
     ],
     gradient: ["#9C27B0", "#E91E63"],
@@ -62,7 +77,12 @@ const OFFERS = [
       { type: "hero", heroId: "hero_yuna", name: "Yuna ★★★★★", icon: "🌟" },
       { type: "gems", amount: 5000, icon: "💎" },
       { type: "gold", amount: 500000, icon: "💰" },
-      { type: "scroll_large", amount: 50, name: "Pergaminos Dorados", icon: "📜" },
+      {
+        type: "scroll_large",
+        amount: 50,
+        name: "Pergaminos Dorados",
+        icon: "📜",
+      },
       { type: "equipment", name: "Set Legendario", icon: "🗡️" },
     ],
     gradient: ["#FF6B6B", "#FFD700"],
@@ -71,7 +91,11 @@ const OFFERS = [
   },
 ];
 
-export default function OfferPopup({ visible, onClose, offerId = "starter_pack" }) {
+export default function OfferPopup({
+  visible,
+  onClose,
+  offerId = "starter_pack",
+}) {
   const [scaleAnim] = useState(new Animated.Value(0));
   const [pulseAnim] = useState(new Animated.Value(1));
   const [countdown, setCountdown] = useState("");
@@ -101,7 +125,7 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
             duration: 800,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
 
       // Countdown si hay tiempo límite
@@ -114,11 +138,17 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
             let hours = parseInt(parts[0]);
             let mins = parseInt(parts[1]);
             let secs = parseInt(parts[2]);
-            
+
             if (secs > 0) secs--;
-            else if (mins > 0) { mins--; secs = 59; }
-            else if (hours > 0) { hours--; mins = 59; secs = 59; }
-            
+            else if (mins > 0) {
+              mins--;
+              secs = 59;
+            } else if (hours > 0) {
+              hours--;
+              mins = 59;
+              secs = 59;
+            }
+
             return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
           });
         }, 1000);
@@ -131,7 +161,9 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
 
   const handlePurchase = () => {
     // En producción aquí iría la integración con la tienda
-    alert("¡Gracias por tu interés! Las compras in-app estarán disponibles próximamente 😉");
+    alert(
+      "¡Gracias por tu interés! Las compras in-app estarán disponibles próximamente 😉",
+    );
     onClose();
   };
 
@@ -144,10 +176,7 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
     >
       <View style={styles.overlay}>
         <Animated.View
-          style={[
-            styles.container,
-            { transform: [{ scale: scaleAnim }] },
-          ]}
+          style={[styles.container, { transform: [{ scale: scaleAnim }] }]}
         >
           {/* Botón cerrar */}
           <Pressable style={styles.closeButton} onPress={onClose}>
@@ -177,7 +206,11 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
               <View style={styles.heroImageContainer}>
                 <View style={styles.heroGlow} />
                 <Image
-                  source={offer.useLocalImage ? hendrikkaImage : { uri: getAssetURL(offer.heroImage) }}
+                  source={
+                    offer.useLocalImage
+                      ? hendrikkaImage
+                      : { uri: getAssetURL(offer.heroImage) }
+                  }
                   style={styles.heroImage}
                   resizeMode="contain"
                 />
@@ -189,23 +222,30 @@ export default function OfferPopup({ visible, onClose, offerId = "starter_pack" 
               {offer.items.map((item, index) => (
                 <View key={index} style={styles.itemRow}>
                   {item.useImage ? (
-                    <Image source={pergaminoDoradoImage} style={styles.itemImage} />
+                    <Image
+                      source={pergaminoDoradoImage}
+                      style={styles.itemImage}
+                    />
                   ) : (
                     <Text style={styles.itemIcon}>{item.icon}</Text>
                   )}
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName}>
-                      {item.name || 
-                        (item.type === "gems" ? `${item.amount.toLocaleString()} Gemas` : 
-                         item.type === "gold" ? `${item.amount.toLocaleString()} Oro` : 
-                         item.name)}
+                      {item.name ||
+                        (item.type === "gems"
+                          ? `${item.amount.toLocaleString()} Gemas`
+                          : item.type === "gold"
+                            ? `${item.amount.toLocaleString()} Oro`
+                            : item.name)}
                     </Text>
                     {item.note && (
                       <Text style={styles.itemNote}>{item.note}</Text>
                     )}
                   </View>
                   {item.amount && (
-                    <Text style={styles.itemAmount}>x{item.amount.toLocaleString()}</Text>
+                    <Text style={styles.itemAmount}>
+                      x{item.amount.toLocaleString()}
+                    </Text>
                   )}
                 </View>
               ))}
