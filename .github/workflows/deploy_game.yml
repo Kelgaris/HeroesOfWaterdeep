@@ -52,7 +52,6 @@ jobs:
     name: Validate Node Backend
     runs-on: ubuntu-latest
     needs: changes
-    # Se ejecuta si cambia el backend, si es una PR, o si se activa manualmente
     if: needs.changes.outputs.backend == 'true' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     defaults:
       run:
@@ -101,7 +100,6 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-  # JOB ADICIONAL: Solo despliega en Render si el backend pasa los tests y estamos en la rama main
   deploy-to-render:
     name: Deploy Backend to Render
     runs-on: ubuntu-latest
@@ -109,9 +107,6 @@ jobs:
     if: (needs.changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     steps:
       - name: Trigger Render Deploy Hook
-        # Este paso enviará una señal a Render para actualizar el servicio solo cuando los tests estén aprobados.
-        # Para que funcione, debes crear un Secret en tu repositorio de GitHub llamado RENDER_DEPLOY_HOOK_URL
-        # con la URL del Deploy Hook que te da Render en el panel de tu servicio web.
         env:
           DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
@@ -149,6 +144,13 @@ jobs:
         with:
           distribution: zulu
           java-version: "17"
+
+      # 🔥 PASO NUEVO REPARADOR: Acepta las licencias e instala el NDK exacto requerido por Expo antes del prebuild
+      - name: Install Android NDK & Accept Licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          echo "Instalando de forma anticipada el NDK 27.1.12297006..."
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.1.12297006"
 
       - name: Create root env for mobile build
         shell: bash
