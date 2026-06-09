@@ -145,13 +145,6 @@ jobs:
           distribution: zulu
           java-version: "17"
 
-      # 🔥 PASO NUEVO REPARADOR: Acepta las licencias e instala el NDK exacto requerido por Expo antes del prebuild
-      - name: Install Android NDK & Accept Licenses
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          echo "Instalando de forma anticipada el NDK 27.1.12297006..."
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.1.12297006"
-
       - name: Create root env for mobile build
         shell: bash
         env:
@@ -180,6 +173,13 @@ jobs:
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android
+
+      # 🔥 CAMBIO CLAVE: Como el zip del NDK 27 se rompe al descargar, forzamos por código el uso de una versión LTS
+      # preinstalada en el runner de GitHub (habitualmente la 26.x.xxxx o similar de soporte largo)
+      - name: Force Pre-installed NDK Version in Gradle
+        run: |
+          sed -i 's/ndkVersion = .*/ndkVersion = "26.1.10909125"/' android/build.gradle || echo "No se pudo inyectar en build.gradle base"
+          sed -i 's/ndkVersion = .*/ndkVersion = "26.1.10909125"/' android/app/build.gradle || echo "No se pudo inyectar en app/build.gradle"
 
       - name: Build release APK
         run: |
