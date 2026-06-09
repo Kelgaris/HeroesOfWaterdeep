@@ -52,6 +52,11 @@ const buildCorsOptions = () => {
 // Creamos una instancia de Express
 const app = express();
 
+// CONFIGURACIÓN PARA PROXIES (RENDER)
+// Requerido para que librerías como 'express-rate-limit' (u otras de seguridad/sesiones)
+// identifiquen correctamente la IP real de los betatesters a través del balanceador de Render.
+app.set("trust proxy", 1);
+
 // Middleware para manejar CORS, seguridad y parseo de JSON
 app.use(cors(buildCorsOptions()));
 app.use(
