@@ -1,28 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  Image,
-  ImageBackground,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    Image,
+    ImageBackground,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
+    useAnimatedStyle,
+    useSharedValue,
+    withSequence,
+    withSpring,
+    withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context"; // ¡NUEVO! Para esquivar la barra blanca/área segura del dispositivo
-import { useMusic } from "../context/MusicContext";
 import ThemedDialog from "../components/ThemedDialog";
+import { useMusic } from "../context/MusicContext";
 import api, {
-  fetchCurrentUser,
-  getAssetURL,
-  SERVER_URL,
+    fetchCurrentUser,
+    getAssetURL,
+    SERVER_URL,
 } from "../services/api";
 
 const { width } = Dimensions.get("window");
@@ -412,7 +412,8 @@ export default function BattleScreen({ route, navigation }) {
           (availableStage) => availableStage.stageId === stageId,
         );
         const indexBasedNextStage =
-          currentStageIndex >= 0 && currentStageIndex < availableStages.length - 1
+          currentStageIndex >= 0 &&
+          currentStageIndex < availableStages.length - 1
             ? availableStages[currentStageIndex + 1]
             : null;
 
@@ -422,7 +423,7 @@ export default function BattleScreen({ route, navigation }) {
             ? progressBasedNextStage
             : indexBasedNextStage && indexBasedNextStage.stageId !== stageId
               ? indexBasedNextStage
-            : null;
+              : null;
         setNextStage(resolvedTarget);
         nextStageRef.current = resolvedTarget;
         setHeroes(result.initialHeroes);
@@ -764,9 +765,7 @@ export default function BattleScreen({ route, navigation }) {
                 onPress={cancelRepeatMode}
               >
                 <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                  {countdownMode === "auto"
-                    ? "DETENER AUTO"
-                    : "DETENER REPEAT"}
+                  {countdownMode === "auto" ? "DETENER AUTO" : "DETENER REPEAT"}
                 </Text>
               </TouchableOpacity>
             )}
