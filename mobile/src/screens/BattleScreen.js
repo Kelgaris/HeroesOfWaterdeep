@@ -17,6 +17,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context"; // ¡NUEVO! Para esquivar la barra blanca/área segura del dispositivo
+import { useMusic } from "../context/MusicContext";
 import ThemedDialog from "../components/ThemedDialog";
 import api, {
   fetchCurrentUser,
@@ -174,8 +175,11 @@ const UnitControlCard = ({ name, role, hp, maxHp, mp, maxMp, isDead }) => {
 };
 
 export default function BattleScreen({ route, navigation }) {
+  const AUTO_ADVANCE_SECONDS = 2;
+  const REPEAT_ADVANCE_SECONDS = 3;
   const { stageId, stage, selectedHeroIds } = route.params;
   const insets = useSafeAreaInsets(); // Guardamos los espaciados del notch y barras de navegación del dispositivo
+  const { playTrack } = useMusic();
 
   const [loading, setLoading] = useState(true);
   const [battleResult, setBattleResult] = useState(null);
@@ -187,6 +191,7 @@ export default function BattleScreen({ route, navigation }) {
 
   // Cuenta atrás visible para el bucle de combates automatizados (Evita el softlock infinito)
   const [repeatCountdown, setRepeatCountdown] = useState(null);
+  const [countdownMode, setCountdownMode] = useState(null);
 
   const [heroes, setHeroes] = useState([]);
   const [enemies, setEnemies] = useState([]);
@@ -200,18 +205,26 @@ export default function BattleScreen({ route, navigation }) {
   const isAutoRef = useRef(isAuto);
   const isRepeatRef = useRef(isRepeat);
   const countdownIntervalRef = useRef(null);
+  const nextStageRef = useRef(null);
+  const goToNextStageDirectRef = useRef(null);
 
   useEffect(() => {
     isAutoRef.current = isAuto;
-  }, [isAuto]);
-  useEffect(() => {
-    isRepeatRef.current = isRepeat;
-    // Si el usuario desactiva REPEAT manualmente a mitad de la cuenta atrás, limpiamos el bucle
-    if (!isRepeat) {
+    if (!isAuto && !isRepeatRef.current && repeatCountdown !== null) {
       clearInterval(countdownIntervalRef.current);
       setRepeatCountdown(null);
+      setCountdownMode(null);
     }
-  }, [isRepeat]);
+  }, [isAuto, repeatCountdown]);
+
+  useEffect(() => {
+    isRepeatRef.current = isRepeat;
+    if (!isRepeat && !isAutoRef.current && repeatCountdown !== null) {
+      clearInterval(countdownIntervalRef.current);
+      setRepeatCountdown(null);
+      setCountdownMode(null);
+    }
+  }, [isRepeat, repeatCountdown]);
 
   // Limpieza estricta de intervalos al desmontar el componente
   useEffect(() => {
@@ -317,11 +330,13 @@ export default function BattleScreen({ route, navigation }) {
         setTimeout(() => {
           if (abortBattleRef.current) return;
           setShowResults(true);
+          if (victory) playTrack("Victory");
 
           // Si el modo REPEAT está encendido y ganamos, iniciamos una cuenta atrás controlada
           if (isRepeatRef.current && victory) {
-            let timeLeft = 3;
+            let timeLeft = REPEAT_ADVANCE_SECONDS;
             setRepeatCountdown(timeLeft);
+            setCountdownMode("repeat");
 
             clearInterval(countdownIntervalRef.current);
             countdownIntervalRef.current = setInterval(() => {
@@ -329,7 +344,25 @@ export default function BattleScreen({ route, navigation }) {
               if (timeLeft <= 0) {
                 clearInterval(countdownIntervalRef.current);
                 setRepeatCountdown(null);
+                setCountdownMode(null);
                 startBattleRef.current?.(); // Lanza el siguiente combate de forma segura
+              } else {
+                setRepeatCountdown(timeLeft);
+              }
+            }, 1000);
+          } else if (isAutoRef.current && victory && nextStageRef.current) {
+            let timeLeft = AUTO_ADVANCE_SECONDS;
+            setRepeatCountdown(timeLeft);
+            setCountdownMode("auto");
+
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = setInterval(() => {
+              timeLeft -= 1;
+              if (timeLeft <= 0) {
+                clearInterval(countdownIntervalRef.current);
+                setRepeatCountdown(null);
+                setCountdownMode(null);
+                goToNextStageDirectRef.current?.(nextStageRef.current); // Salta a la siguiente fase
               } else {
                 setRepeatCountdown(timeLeft);
               }
@@ -345,10 +378,12 @@ export default function BattleScreen({ route, navigation }) {
   const startBattle = useCallback(async () => {
     clearInterval(countdownIntervalRef.current);
     setRepeatCountdown(null);
+    setCountdownMode(null);
     abortBattleRef.current = true;
 
     setTimeout(async () => {
       abortBattleRef.current = false;
+      playTrack("Battle");
       setLoading(true);
       setShowResults(false);
       try {
@@ -363,19 +398,33 @@ export default function BattleScreen({ route, navigation }) {
         const nextStageResponse = await api
           .get("/battle/stages")
           .catch(() => null);
+        const availableStages = nextStageResponse?.data?.stages || [];
         const nextProgress = result.userStats?.progress;
-        const resolvedNextStage = nextStageResponse?.data?.stages?.find(
+        const progressBasedNextStage = availableStages.find(
           (availableStage) =>
             availableStage.zone === nextProgress?.zone &&
             availableStage.stageNumber === nextProgress?.stage,
         );
 
-        setBattleResult(result);
-        setNextStage(
-          resolvedNextStage && resolvedNextStage.stageId !== stageId
-            ? resolvedNextStage
-            : null,
+        // Fallback robusto: si el backend aún no ha avanzado el progreso,
+        // intentamos obtener la siguiente fase por posición dentro del catálogo.
+        const currentStageIndex = availableStages.findIndex(
+          (availableStage) => availableStage.stageId === stageId,
         );
+        const indexBasedNextStage =
+          currentStageIndex >= 0 && currentStageIndex < availableStages.length - 1
+            ? availableStages[currentStageIndex + 1]
+            : null;
+
+        setBattleResult(result);
+        const resolvedTarget =
+          progressBasedNextStage && progressBasedNextStage.stageId !== stageId
+            ? progressBasedNextStage
+            : indexBasedNextStage && indexBasedNextStage.stageId !== stageId
+              ? indexBasedNextStage
+            : null;
+        setNextStage(resolvedTarget);
+        nextStageRef.current = resolvedTarget;
         setHeroes(result.initialHeroes);
         setEnemies(result.initialEnemies);
 
@@ -421,6 +470,7 @@ export default function BattleScreen({ route, navigation }) {
   const goToHeroSelection = useCallback(
     (targetStage) => {
       clearInterval(countdownIntervalRef.current);
+      playTrack("EternalWind");
       navigation.reset({
         index: 2,
         routes: [
@@ -430,7 +480,7 @@ export default function BattleScreen({ route, navigation }) {
         ],
       });
     },
-    [navigation],
+    [navigation, playTrack],
   );
 
   const goToNextStageDirect = useCallback(
@@ -464,10 +514,16 @@ export default function BattleScreen({ route, navigation }) {
     ],
   );
 
+  useEffect(() => {
+    goToNextStageDirectRef.current = goToNextStageDirect;
+  }, [goToNextStageDirect]);
+
   const cancelRepeatMode = () => {
     clearInterval(countdownIntervalRef.current);
     setRepeatCountdown(null);
+    setCountdownMode(null);
     setIsRepeat(false);
+    setIsAuto(false);
   };
 
   const battleBackgroundSource = battleResult?.backgroundImageUri
@@ -688,10 +744,12 @@ export default function BattleScreen({ route, navigation }) {
               </Text>
             ) : null}
 
-            {/* Texto informativo de la cuenta atrás de REPEAT */}
+            {/* Texto informativo de la cuenta atrás automática */}
             {repeatCountdown !== null && (
               <Text style={styles.countdownText}>
-                Siguiente combate automático en:{" "}
+                {countdownMode === "auto"
+                  ? "Siguiente fase automática en: "
+                  : "Siguiente combate automático en: "}
                 <Text style={{ color: "#FFD700", fontWeight: "bold" }}>
                   {repeatCountdown}s
                 </Text>
@@ -700,51 +758,59 @@ export default function BattleScreen({ route, navigation }) {
           </View>
 
           <View style={styles.resultsButtons}>
-            {repeatCountdown !== null ? (
+            {repeatCountdown !== null && (
               <TouchableOpacity
                 style={[styles.actionBtn, { backgroundColor: "#FF3333" }]}
                 onPress={cancelRepeatMode}
               >
                 <Text style={[styles.actionBtnText, { color: "#FFF" }]}>
-                  DETENER REPEAT
+                  {countdownMode === "auto"
+                    ? "DETENER AUTO"
+                    : "DETENER REPEAT"}
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {battleResult.victory ? (
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => goToNextStageDirect(nextStage)}
+                disabled={!nextStage?.stageId}
+              >
+                <Text style={styles.actionBtnText}>SIGUIENTE FASE</Text>
+              </TouchableOpacity>
             ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => startBattle()}
-                >
-                  <Text style={styles.actionBtnText}>REINTENTAR</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.secondaryActionBtn]}
-                  onPress={() => goToHeroSelection(stage)}
-                >
-                  <Text style={styles.actionBtnText}>CAMBIAR EQUIPO</Text>
-                </TouchableOpacity>
-                {battleResult.victory && nextStage ? (
-                  <TouchableOpacity
-                    style={styles.actionBtn}
-                    onPress={() => goToNextStageDirect(nextStage)}
-                  >
-                    <Text style={styles.actionBtnText}>SIGUIENTE FASE</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.actionBtn, styles.secondaryActionBtn]}
-                    onPress={() => {
-                      clearInterval(countdownIntervalRef.current);
-                      navigation.reset({
-                        index: 1,
-                        routes: [{ name: "Home" }, { name: "Campaign" }],
-                      });
-                    }}
-                  >
-                    <Text style={styles.actionBtnText}>VOLVER A CAMPAÑA</Text>
-                  </TouchableOpacity>
-                )}
-              </>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => startBattle()}
+              >
+                <Text style={styles.actionBtnText}>REINTENTAR</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.secondaryActionBtn]}
+              onPress={() => goToHeroSelection(stage)}
+            >
+              <Text style={styles.actionBtnText}>CAMBIAR EQUIPO</Text>
+            </TouchableOpacity>
+
+            {battleResult.victory ? null : (
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.secondaryActionBtn]}
+                onPress={() => {
+                  clearInterval(countdownIntervalRef.current);
+                  setRepeatCountdown(null);
+                  setCountdownMode(null);
+                  playTrack("EternalWind");
+                  navigation.reset({
+                    index: 1,
+                    routes: [{ name: "Home" }, { name: "Campaign" }],
+                  });
+                }}
+              >
+                <Text style={styles.actionBtnText}>VOLVER A CAMPAÑA</Text>
+              </TouchableOpacity>
             )}
           </View>
         </View>

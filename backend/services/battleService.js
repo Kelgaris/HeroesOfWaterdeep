@@ -753,11 +753,30 @@ async function simulateBattle(usuarioId, stageId, selectedHeroIds) {
     zoneClearBonusGems: 0,
   };
 
+  let firstClearReward = false;
+  let gemsEarned = 0;
+
   if (victory) {
+    if (!usuario.clearedStages) {
+      usuario.clearedStages = [];
+    }
+
+    const isFirstClear = !usuario.clearedStages.includes(stage.stageId);
+
+    if (isFirstClear) {
+      firstClearReward = true;
+      usuario.clearedStages.push(stage.stageId);
+
+      const stagesInZone = allStages.filter(s => s.zone === stage.zone).length;
+      const isLastStage = stage.stageNumber === stagesInZone;
+
+      gemsEarned = isLastStage ? 1200 : 150;
+    }
+
     rewards = {
       experience: stageEconomy.rewards.experience,
       gold: stageEconomy.rewards.gold,
-      gems: stageEconomy.rewards.gems,
+      gems: gemsEarned,
       zoneClearBonusGems: 0,
     };
 
@@ -840,6 +859,8 @@ async function simulateBattle(usuarioId, stageId, selectedHeroIds) {
     turns,
     heroesRemaining,
     enemiesRemaining,
+    firstClearReward,
+    gemsEarned,
     rewards: victory ? rewards : null,
     battleLog,
     initialHeroes,

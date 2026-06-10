@@ -16,6 +16,8 @@ import AppNavigator from "./src/navigation/AppNavigator";
 
 SplashScreen.preventAutoHideAsync();
 
+import { MusicProvider } from "./src/context/MusicContext";
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     Cinzel_400Regular,
@@ -37,7 +39,9 @@ export default function App() {
 
   return (
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
-      <AppNavigator />
+      <MusicProvider>
+        <AppNavigator />
+      </MusicProvider>
     </View>
   );
 }

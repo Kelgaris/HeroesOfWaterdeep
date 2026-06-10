@@ -183,9 +183,9 @@ function SummonRevealCard({
 }
 
 function RevealFanCard({ item, state, index, total }) {
-  const rarityColor = RARITY_COLORS[item.hero?.rarity] || palette.gold;
-  const isActive = state === "active";
   const isRevealed = state === "revealed";
+  const rarityColor = isRevealed ? (RARITY_COLORS[item.hero?.rarity] || palette.gold) : palette.parchment;
+  const isActive = state === "active";
   const layout = getOrderedFanLayout(index, total);
 
   const bgColor = isRevealed
@@ -211,10 +211,10 @@ function RevealFanCard({ item, state, index, total }) {
       ]}
     >
       <Text style={[styles.fanStars, { color: rarityColor }]}>
-        {"★".repeat(item.hero?.rarity || 4)}
+        {isRevealed ? "★".repeat(item.hero?.rarity || 4) : "✦"}
       </Text>
       <Text style={styles.fanName} numberOfLines={1}>
-        {item.hero?.name || "Héroe"}
+        {isRevealed ? (item.hero?.name || "Héroe") : "???"}
       </Text>
     </View>
   );
