@@ -255,7 +255,7 @@ export default function SettingsScreen({ navigation }) {
           >
             <View>
               <Text style={[styles.actionTitle, styles.logoutTitle]}>
-                Logout
+                Salir
               </Text>
               <Text style={styles.actionSubtitle}>
                 Cerrar sesión y volver al portal principal
